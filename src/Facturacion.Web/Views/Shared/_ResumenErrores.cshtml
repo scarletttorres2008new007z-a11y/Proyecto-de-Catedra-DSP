@@ -1,0 +1,5 @@
+@* Solo se dibuja cuando hay errores: el resumen vacío del tag helper usa un estilo en línea que la CSP bloquea. *@
+@if (!ViewData.ModelState.IsValid)
+{
+    <div asp-validation-summary="All" class="validation-summary-errors" role="alert"></div>
+}

@@ -1,0 +1,112 @@
+@model RevisionVista
+@{
+    var p = Model.Preparado;
+    var s = Model.Solicitud;
+    ViewData["Title"] = "Revisar documento";
+    var incluyeIva = TiposDteInfo.PrecioIncluyeIva(p.Tipo);
+    var c = p.Cliente;
+}
+<div class="encabezado-pagina">
+    <div>
+        <h1>Revisar @TiposDteInfo.Nombre(p.Tipo).ToLowerInvariant()</h1>
+        <p class="subtitulo">Paso 2 de 2: importes calculados por el servidor. Al confirmar se guarda el documento, se generan el JSON y el PDF y se intenta el envío al correo del cliente.</p>
+    </div>
+</div>
+
+<div class="alerta alerta-info">Modo académico: el documento no se transmitirá al Ministerio de Hacienda y no tendrá sello de recepción.</div>
+
+<div class="rejilla rejilla-2">
+    <section class="tarjeta">
+        <h2>Receptor</h2>
+        <dl class="datos">
+            <dt>Nombre</dt><dd>@c.Nombre</dd>
+            @if (p.Tipo == TipoDte.FacturaConsumidorFinal)
+            {
+                <dt>Documento</dt><dd>@(c.NumeroDocumento is null ? "Sin documento" : $"{Catalogos.NombreTipoDocumento(c.TipoDocumento)} {c.NumeroDocumento}")</dd>
+            }
+            else
+            {
+                <dt>NIT</dt><dd>@c.NumeroDocumento</dd>
+                <dt>NRC</dt><dd>@c.Nrc</dd>
+                <dt>Actividad</dt><dd>@c.CodActividad - @c.DescActividad</dd>
+            }
+            <dt>Correo</dt><dd>@(c.Correo ?? "Sin correo: el envío automático fallará y quedará registrado")</dd>
+        </dl>
+    </section>
+    <section class="tarjeta">
+        <h2>Operación</h2>
+        <dl class="datos">
+            <dt>Tipo</dt><dd>@TiposDteInfo.Nombre(p.Tipo) (esquema v@(TiposDteInfo.VersionEsquema(p.Tipo)))</dd>
+            @if (p.Relacionado is not null)
+            {
+                <dt>CCF relacionado</dt><dd class="monoespaciado">@p.Relacionado.NumeroControl</dd>
+            }
+            <dt>Condición</dt><dd>Contado@(p.Tipo != TipoDte.NotaCredito ? $" · {Catalogos.FormasPago[p.FormaPago]}" : "")</dd>
+            <dt>Observaciones</dt><dd>@(p.Observaciones ?? "—")</dd>
+        </dl>
+    </section>
+</div>
+
+<section class="tarjeta">
+    <h2>Detalle</h2>
+    <div class="tabla-contenedor">
+        <table class="tabla">
+            <thead>
+            <tr><th>N.°</th><th>Código</th><th>Descripción</th><th class="derecha">Cantidad</th><th class="derecha">Precio unit. @(incluyeIva ? "(con IVA)" : "(sin IVA)")</th><th class="derecha">Descuento</th><th class="derecha">Venta gravada</th>@if (incluyeIva) {<th class="derecha">IVA incluido</th>}</tr>
+            </thead>
+            <tbody>
+            @foreach (var l in p.Lineas)
+            {
+                <tr>
+                    <td>@l.NumItem</td>
+                    <td class="monoespaciado">@l.Codigo</td>
+                    <td>@l.Descripcion</td>
+                    <td class="derecha">@Presentacion.Cantidad(l.Calculo.Cantidad) @Catalogos.NombreUnidad(l.UnidadMedida).ToLowerInvariant()</td>
+                    <td class="derecha">@Presentacion.Moneda(l.Calculo.PrecioUnitario)</td>
+                    <td class="derecha">@Presentacion.Moneda(l.Calculo.MontoDescuento)</td>
+                    <td class="derecha">@Presentacion.Moneda(l.Calculo.VentaGravada)</td>
+                    @if (incluyeIva) {<td class="derecha">@Presentacion.Moneda(l.Calculo.IvaItem)</td>}
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <table class="tabla-totales">
+        <tr><td>Suma de ventas gravadas</td><td>@Presentacion.Moneda(p.Resumen.TotalGravada)</td></tr>
+        <tr><td>Descuentos aplicados</td><td>@Presentacion.Moneda(p.Resumen.TotalDescuento)</td></tr>
+        @if (incluyeIva)
+        {
+            <tr><td>IVA incluido (13 %)</td><td>@Presentacion.Moneda(p.Resumen.TotalIva)</td></tr>
+            <tr class="total"><td>Total a pagar</td><td>@Presentacion.Moneda(p.Resumen.TotalPagar)</td></tr>
+        }
+        else
+        {
+            <tr><td>Subtotal</td><td>@Presentacion.Moneda(p.Resumen.SubTotal)</td></tr>
+            <tr><td>IVA 13 %</td><td>@Presentacion.Moneda(p.Resumen.TotalIva)</td></tr>
+            <tr class="total"><td>@(p.Tipo == TipoDte.NotaCredito ? "Monto total acreditado" : "Total a pagar")</td><td>@Presentacion.Moneda(p.Resumen.MontoTotalOperacion)</td></tr>
+        }
+    </table>
+    <p class="texto-suave">@p.TotalLetras</p>
+</section>
+
+<form method="post" asp-action="Confirmar" class="botonera" data-confirmar="¿Emitir el documento? Esta acción no se puede deshacer; solo podrá anularse según las reglas de anulación.">
+    <input type="hidden" name="claveIdempotencia" value="@Model.ClaveIdempotencia" />
+    <input type="hidden" name="Tipo" value="@s.Tipo" />
+    <input type="hidden" name="ClienteId" value="@s.ClienteId" />
+    <input type="hidden" name="FormaPago" value="@s.FormaPago" />
+    <input type="hidden" name="Observaciones" value="@s.Observaciones" />
+    <input type="hidden" name="DocumentoRelacionadoId" value="@s.DocumentoRelacionadoId" />
+    @for (var i = 0; i < s.Lineas.Count; i++)
+    {
+        <input type="hidden" name="Lineas[@i].ProductoId" value="@s.Lineas[i].ProductoId" />
+        <input type="hidden" name="Lineas[@i].Cantidad" value="@s.Lineas[i].Cantidad.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+        <input type="hidden" name="Lineas[@i].Descuento" value="@s.Lineas[i].Descuento.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+    }
+    @for (var i = 0; i < s.LineasNotaCredito.Count; i++)
+    {
+        <input type="hidden" name="LineasNotaCredito[@i].DetalleRelacionadoId" value="@s.LineasNotaCredito[i].DetalleRelacionadoId" />
+        <input type="hidden" name="LineasNotaCredito[@i].Cantidad" value="@s.LineasNotaCredito[i].Cantidad.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+    }
+    <button type="submit" class="boton">Confirmar y emitir</button>
+    <button type="submit" class="boton boton-secundario" formaction="@Url.Action("Modificar")" data-confirmar="">Modificar</button>
+</form>

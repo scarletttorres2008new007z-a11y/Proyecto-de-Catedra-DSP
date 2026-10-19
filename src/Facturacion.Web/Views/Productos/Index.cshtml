@@ -1,0 +1,65 @@
+@model Pagina<Producto>
+@{
+    ViewData["Title"] = "Productos";
+    var estado = ViewData["Estado"] as string;
+    var bajo = ViewData["InventarioBajo"] as bool? ?? false;
+}
+<div class="encabezado-pagina">
+    <div>
+        <h1>Productos</h1>
+        <p class="subtitulo">Precios sin IVA. En la factura de consumidor final se muestran con IVA incluido (13 %).</p>
+    </div>
+    <div class="acciones">
+        <a class="boton" asp-action="Crear">Registrar producto</a>
+    </div>
+</div>
+
+<form method="get" asp-action="Index" class="filtros tarjeta">
+    <div class="campo campo-busqueda">
+        <label for="busqueda">Buscar por código, nombre o descripción</label>
+        <input type="search" id="busqueda" name="busqueda" value="@ViewData["Busqueda"]" />
+    </div>
+    <div class="campo">
+        <label for="estado">Estado</label>
+        <select id="estado" name="estado">
+            <option value="">Todos</option>
+            <option value="activos" selected="@(estado == "activos")">Activos</option>
+            <option value="inactivos" selected="@(estado == "inactivos")">Inactivos</option>
+        </select>
+    </div>
+    <label class="casilla"><input type="checkbox" name="inventarioBajo" value="true" checked="@bajo" /> Existencias bajas (≤ @ProductoService.UmbralInventarioBajo)</label>
+    <button type="submit" class="boton boton-secundario" data-sin-bloqueo>Filtrar</button>
+</form>
+
+@if (Model.Total == 0)
+{
+    <div class="tarjeta vacio">
+        <p>No hay productos que coincidan con la búsqueda.</p>
+        <div class="acciones"><a class="boton" asp-action="Crear">Registrar producto</a></div>
+    </div>
+}
+else
+{
+    <div class="tarjeta tabla-contenedor">
+        <table class="tabla">
+            <thead>
+            <tr><th>Código</th><th>Nombre</th><th>Unidad</th><th class="derecha">Precio sin IVA</th><th class="derecha">Precio con IVA</th><th class="derecha">Existencias</th><th>Estado</th></tr>
+            </thead>
+            <tbody>
+            @foreach (var p in Model.Elementos)
+            {
+                <tr>
+                    <td class="monoespaciado">@p.Codigo</td>
+                    <td><a asp-action="Detalle" asp-route-id="@p.Id">@p.Nombre</a></td>
+                    <td>@Catalogos.NombreUnidad(p.UnidadMedida)</td>
+                    <td class="derecha">@Presentacion.Moneda(p.PrecioSinIva)</td>
+                    <td class="derecha">@Presentacion.Moneda(Facturacion.Domain.Reglas.CalculadoraImportes.PrecioDocumento(TipoDte.FacturaConsumidorFinal, p.PrecioSinIva))</td>
+                    <td class="derecha">@(p.ControlaInventario ? Presentacion.Cantidad(p.Existencias) : "No controla")</td>
+                    <td>@Presentacion.Activo(p.Activo)</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+        <partial name="_Paginacion" model="(Model.NumeroPagina, Model.TotalPaginas, Model.Total)" />
+    </div>
+}

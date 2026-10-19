@@ -1,0 +1,114 @@
+@model SolicitudAnulacion
+@using Facturacion.Application.Dte
+@{
+    var ctx = (ContextoAnulacion)ViewData["Contexto"]!;
+    var d = ctx.Documento;
+    ViewData["Title"] = "Anular documento";
+}
+<div class="encabezado-pagina">
+    <div>
+        <h1>Anular @TiposDteInfo.Nombre(d.Tipo).ToLowerInvariant()</h1>
+        <p class="subtitulo"><span class="monoespaciado">@d.NumeroControl</span> · @d.ReceptorNombre · @Presentacion.Moneda(d.TotalPagar)</p>
+    </div>
+</div>
+
+<div class="alerta alerta-aviso">
+    Modo académico: la anulación se procesa como <strong>simulación</strong>. No se envía el evento de invalidación al Ministerio de Hacienda.
+    Tras procesarla, el documento queda anulado en el sistema, se devuelven las existencias (facturas y CCF) y se notifica al cliente por correo.
+</div>
+
+<section class="tarjeta">
+    <h2>Regla aplicable</h2>
+    <dl class="datos">
+        <dt>Plazo configurado</dt><dd>@ctx.Plazo desde la fecha de emisión (@Presentacion.Fecha(d.FechaEmision))</dd>
+        <dt>Fecha límite</dt><dd>@ctx.FechaLimiteLocal.ToString("dd/MM/yyyy HH:mm") (hora de El Salvador)</dd>
+        <dt>Estado actual</dt><dd>@Presentacion.EstadoDocumento(d.Estado, d.Modo)</dd>
+    </dl>
+    @if (!ctx.Permitida)
+    {
+        <div class="alerta alerta-error">
+            La anulación no está permitida:
+            <ul>@foreach (var i in ctx.Impedimentos) { <li>@i</li> }</ul>
+        </div>
+    }
+</section>
+
+@if (ctx.Permitida)
+{
+    <form method="post" asp-action="Solicitar" class="formulario" novalidate
+          data-confirmar="¿Confirmar la anulación? El documento quedará anulado y no podrá volver a emitirse con el mismo código.">
+        <partial name="_ResumenErrores" />
+        <input type="hidden" asp-for="DocumentoId" />
+        <fieldset class="tarjeta">
+            <legend>Motivo</legend>
+            <div class="campos">
+                <div class="campo">
+                    <label asp-for="Tipo">Tipo de anulación (CAT-024)</label>
+                    <select asp-for="Tipo">
+                        @foreach (var t in Catalogos.TiposAnulacion)
+                        {
+                            <option value="@t.Key">@((int)t.Key) - @t.Value</option>
+                        }
+                    </select>
+                </div>
+                <div class="campo">
+                    <label asp-for="DocumentoReemplazoId">Documento de reemplazo</label>
+                    <select asp-for="DocumentoReemplazoId">
+                        <option value="">Ninguno (solo para "Rescindir la operación")</option>
+                        @foreach (var r in ctx.CandidatosReemplazo)
+                        {
+                            <option value="@r.Id">@r.NumeroControl · @r.ReceptorNombre · @Presentacion.Moneda(r.TotalPagar)</option>
+                        }
+                    </select>
+                    <span class="ayuda">Obligatorio para los tipos 1 y 3: emita primero el documento correcto y selecciónelo aquí.</span>
+                </div>
+                <div class="campo campo-ancho">
+                    <label asp-for="Motivo">Descripción del motivo</label>
+                    <textarea asp-for="Motivo" maxlength="250" required></textarea>
+                    <span asp-validation-for="Motivo"></span>
+                </div>
+            </div>
+        </fieldset>
+        <fieldset class="tarjeta">
+            <legend>Responsable y solicitante</legend>
+            <div class="campos">
+                <div class="campo">
+                    <label asp-for="NombreResponsable">Nombre del responsable (emisor)</label>
+                    <input asp-for="NombreResponsable" maxlength="100" />
+                </div>
+                <div class="campo">
+                    <label asp-for="TipoDocResponsable">Tipo de documento</label>
+                    <select asp-for="TipoDocResponsable">
+                        @foreach (var t in Catalogos.TiposDocumentoIdentificacion) { <option value="@t.Key">@t.Value</option> }
+                    </select>
+                </div>
+                <div class="campo">
+                    <label asp-for="NumDocResponsable">Número de documento</label>
+                    <input asp-for="NumDocResponsable" maxlength="25" />
+                </div>
+                <div class="campo">
+                    <label asp-for="NombreSolicita">Nombre de quien solicita (cliente)</label>
+                    <input asp-for="NombreSolicita" maxlength="100" />
+                </div>
+                <div class="campo">
+                    <label asp-for="TipoDocSolicita">Tipo de documento</label>
+                    <select asp-for="TipoDocSolicita">
+                        @foreach (var t in Catalogos.TiposDocumentoIdentificacion) { <option value="@t.Key">@t.Value</option> }
+                    </select>
+                </div>
+                <div class="campo">
+                    <label asp-for="NumDocSolicita">Número de documento</label>
+                    <input asp-for="NumDocSolicita" maxlength="25" />
+                </div>
+            </div>
+        </fieldset>
+        <div class="botonera">
+            <button type="submit" class="boton boton-peligro">Procesar anulación</button>
+            <a class="boton boton-secundario" asp-controller="Documentos" asp-action="Detalle" asp-route-id="@d.Id">Cancelar</a>
+        </div>
+    </form>
+}
+else
+{
+    <a class="boton boton-secundario" asp-controller="Documentos" asp-action="Detalle" asp-route-id="@d.Id">Volver al documento</a>
+}

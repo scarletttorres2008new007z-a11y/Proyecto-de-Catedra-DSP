@@ -1,0 +1,67 @@
+@model EmisorFormulario
+@using Facturacion.Web.Controllers
+@{
+    ViewData["Title"] = "Configuración";
+    var r = (ResumenConfiguracion)ViewData["Resumen"]!;
+}
+<div class="encabezado-pagina">
+    <div>
+        <h1>Configuración</h1>
+        <p class="subtitulo">Datos del emisor (no secretos). Los cambios quedan en el historial de operaciones y solo afectan a documentos futuros.</p>
+        @if (ViewData["Modificado"] is string m) { <p class="texto-suave">Última modificación: @m</p> }
+    </div>
+</div>
+
+<form method="post" asp-action="Index" class="formulario" novalidate>
+    <partial name="_ResumenErrores" />
+    <fieldset class="tarjeta">
+        <legend>Emisor</legend>
+        <div class="campos">
+            <div class="campo"><label asp-for="Nit"></label><input asp-for="Nit" maxlength="17" /><span asp-validation-for="Nit"></span></div>
+            <div class="campo"><label asp-for="Nrc"></label><input asp-for="Nrc" maxlength="10" /><span asp-validation-for="Nrc"></span></div>
+            <div class="campo campo-ancho"><label asp-for="Nombre"></label><input asp-for="Nombre" maxlength="250" /><span asp-validation-for="Nombre"></span></div>
+            <div class="campo"><label asp-for="NombreComercial"></label><input asp-for="NombreComercial" maxlength="150" /></div>
+            <div class="campo"><label asp-for="CodActividad"></label><input asp-for="CodActividad" maxlength="6" /><span asp-validation-for="CodActividad"></span></div>
+            <div class="campo"><label asp-for="DescActividad"></label><input asp-for="DescActividad" maxlength="150" /><span asp-validation-for="DescActividad"></span></div>
+            <div class="campo">
+                <label asp-for="TipoEstablecimiento"></label>
+                <select asp-for="TipoEstablecimiento">
+                    @foreach (var t in Catalogos.TiposEstablecimiento) { <option value="@t.Key">@t.Key - @t.Value</option> }
+                </select>
+            </div>
+            <div class="campo"><label asp-for="CodEstable"></label><input asp-for="CodEstable" maxlength="4" /><span class="ayuda">Forma parte del número de control.</span><span asp-validation-for="CodEstable"></span></div>
+            <div class="campo"><label asp-for="CodPuntoVenta"></label><input asp-for="CodPuntoVenta" maxlength="4" /><span asp-validation-for="CodPuntoVenta"></span></div>
+        </div>
+    </fieldset>
+    <fieldset class="tarjeta">
+        <legend>Dirección y contacto del emisor</legend>
+        <div class="campos">
+            <div class="campo">
+                <label asp-for="Departamento"></label>
+                <select asp-for="Departamento">
+                    <option value="">Seleccione</option>
+                    @foreach (var d in Catalogos.Departamentos) { <option value="@d.Key">@d.Key - @d.Value</option> }
+                </select>
+                <span asp-validation-for="Departamento"></span>
+            </div>
+            <div class="campo"><label asp-for="Municipio"></label><input asp-for="Municipio" maxlength="2" /><span asp-validation-for="Municipio"></span></div>
+            <div class="campo campo-ancho"><label asp-for="Complemento"></label><input asp-for="Complemento" maxlength="200" /><span asp-validation-for="Complemento"></span></div>
+            <div class="campo"><label asp-for="Telefono"></label><input asp-for="Telefono" type="tel" maxlength="30" /><span asp-validation-for="Telefono"></span></div>
+            <div class="campo"><label asp-for="Correo"></label><input asp-for="Correo" type="email" maxlength="100" /><span asp-validation-for="Correo"></span></div>
+        </div>
+    </fieldset>
+    <div class="botonera"><button type="submit" class="boton">Guardar datos del emisor</button></div>
+</form>
+
+<section class="tarjeta">
+    <h2>Parámetros de funcionamiento (solo lectura)</h2>
+    <p class="ayuda">Se cambian en appsettings.json, variables de entorno o User Secrets; las credenciales nunca se muestran.</p>
+    <dl class="datos">
+        <dt>Modo</dt><dd>@(r.Facturacion.Modo == ModoOperacion.Academico ? "Académico (sin conexión con Hacienda)" : "Oficial (no implementado)")</dd>
+        <dt>Identificación obligatoria en factura desde</dt><dd>@Presentacion.Moneda(r.Facturacion.UmbralIdentificacionFactura)</dd>
+        <dt>Plazos de anulación</dt><dd>Factura: @r.Anulaciones.Plazo(TipoDte.FacturaConsumidorFinal) · CCF: @r.Anulaciones.Plazo(TipoDte.ComprobanteCreditoFiscal) · Nota de crédito: @r.Anulaciones.Plazo(TipoDte.NotaCredito)</dd>
+        <dt>Servidor SMTP</dt><dd>@(string.IsNullOrEmpty(r.SmtpServidor) ? "No configurado" : $"{r.SmtpServidor}:{r.SmtpPuerto} ({r.SmtpSeguridad})")</dd>
+        <dt>Remitente</dt><dd>@(string.IsNullOrEmpty(r.SmtpRemitente) ? "No configurado" : r.SmtpRemitente)</dd>
+        <dt>Credenciales SMTP</dt><dd>@(r.SmtpCredencialesConfiguradas ? "Configuradas" : "No configuradas")</dd>
+    </dl>
+</section>

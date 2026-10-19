@@ -1,0 +1,26 @@
+@model Facturacion.Web.Controllers.InicioSesionModelo
+@{
+    ViewData["Title"] = "Iniciar sesión";
+}
+<div class="acceso">
+    <div class="tarjeta">
+        <h1>Facturación electrónica</h1>
+        <p class="subtitulo">Sistema académico de documentos tributarios electrónicos. Acceso solo para personal autorizado.</p>
+        <form asp-action="IniciarSesion" method="post" class="formulario" novalidate>
+            <partial name="_ResumenErrores" />
+            <input type="hidden" asp-for="VolverA" />
+            <div class="campo">
+                <label asp-for="Correo"></label>
+                <input asp-for="Correo" type="email" autocomplete="username" autofocus />
+                <span asp-validation-for="Correo"></span>
+            </div>
+            <div class="campo">
+                <label asp-for="Contrasena"></label>
+                <input asp-for="Contrasena" autocomplete="current-password" />
+                <span asp-validation-for="Contrasena"></span>
+            </div>
+            <button type="submit" class="boton">Iniciar sesión</button>
+        </form>
+    </div>
+    <p class="texto-suave nota-acceso">Modo académico: no hay conexión con el Ministerio de Hacienda.</p>
+</div>

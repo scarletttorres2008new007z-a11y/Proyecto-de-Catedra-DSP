@@ -1,0 +1,128 @@
+@model ClienteFormulario
+@{
+    var edicion = Model.Id > 0;
+    ViewData["Title"] = edicion ? "Editar cliente" : "Registrar cliente";
+}
+<div class="encabezado-pagina">
+    <div>
+        <h1>@ViewData["Title"]</h1>
+        <p class="subtitulo">Solo se exigen los datos necesarios según el tipo de cliente. Los contribuyentes requieren NIT, NRC, actividad económica, dirección y correo para poder recibir CCF y notas de crédito.</p>
+    </div>
+</div>
+
+<form method="post" asp-action="@(edicion ? "Editar" : "Crear")" asp-route-id="@(edicion ? Model.Id : null)" class="formulario" novalidate>
+    <partial name="_ResumenErrores" />
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="Version" />
+    <input type="hidden" asp-for="VolverA" />
+
+    <fieldset class="tarjeta">
+        <legend>Identificación</legend>
+        <div class="campos">
+            <div class="campo">
+                <label asp-for="Tipo"></label>
+                <select asp-for="Tipo">
+                    <option value="ConsumidorFinal">Consumidor final</option>
+                    <option value="Contribuyente">Contribuyente (NIT y NRC)</option>
+                </select>
+                <span class="ayuda">Para contribuyentes el documento es siempre el NIT.</span>
+            </div>
+            <div class="campo campo-ancho">
+                <label asp-for="Nombre"></label>
+                <input asp-for="Nombre" maxlength="250" required />
+                <span asp-validation-for="Nombre"></span>
+            </div>
+            <div class="campo">
+                <label asp-for="NombreComercial"></label>
+                <input asp-for="NombreComercial" maxlength="150" />
+                <span asp-validation-for="NombreComercial"></span>
+            </div>
+            <div class="campo">
+                <label asp-for="TipoDocumento"></label>
+                <select asp-for="TipoDocumento">
+                    <option value="">Sin documento (consumidor final)</option>
+                    @foreach (var t in Catalogos.TiposDocumentoIdentificacion)
+                    {
+                        <option value="@t.Key">@t.Value</option>
+                    }
+                </select>
+                <span asp-validation-for="TipoDocumento"></span>
+            </div>
+            <div class="campo">
+                <label asp-for="NumeroDocumento"></label>
+                <input asp-for="NumeroDocumento" maxlength="25" autocomplete="off" />
+                <span class="ayuda">DUI: 00000000-0. NIT: 14 dígitos (o 9 si es DUI homologado), sin guiones.</span>
+                <span asp-validation-for="NumeroDocumento"></span>
+            </div>
+            <div class="campo">
+                <label asp-for="Nrc"></label>
+                <input asp-for="Nrc" maxlength="10" autocomplete="off" />
+                <span class="ayuda">De 1 a 8 dígitos. Solo contribuyentes o clientes con NIT.</span>
+                <span asp-validation-for="Nrc"></span>
+            </div>
+            <div class="campo">
+                <label asp-for="CodActividad"></label>
+                <input asp-for="CodActividad" maxlength="6" inputmode="numeric" />
+                <span class="ayuda">Catálogo CAT-019 (2 a 6 dígitos).</span>
+                <span asp-validation-for="CodActividad"></span>
+            </div>
+            <div class="campo">
+                <label asp-for="DescActividad"></label>
+                <input asp-for="DescActividad" maxlength="150" />
+                <span asp-validation-for="DescActividad"></span>
+            </div>
+        </div>
+    </fieldset>
+
+    <fieldset class="tarjeta">
+        <legend>Dirección y contacto</legend>
+        <p class="ayuda">La dirección se registra completa (departamento, municipio y complemento) o se deja vacía si el cliente es consumidor final.</p>
+        <div class="campos">
+            <div class="campo">
+                <label asp-for="Departamento"></label>
+                <select asp-for="Departamento">
+                    <option value="">Seleccione</option>
+                    @foreach (var d in Catalogos.Departamentos)
+                    {
+                        <option value="@d.Key">@d.Key - @d.Value</option>
+                    }
+                </select>
+                <span asp-validation-for="Departamento"></span>
+            </div>
+            <div class="campo">
+                <label asp-for="Municipio"></label>
+                <input asp-for="Municipio" maxlength="2" inputmode="numeric" />
+                <span class="ayuda">Código de 2 dígitos del catálogo CAT-013 vigente.</span>
+                <span asp-validation-for="Municipio"></span>
+            </div>
+            <div class="campo campo-ancho">
+                <label asp-for="Complemento"></label>
+                <input asp-for="Complemento" maxlength="200" />
+                <span asp-validation-for="Complemento"></span>
+            </div>
+            <div class="campo">
+                <label asp-for="Telefono"></label>
+                <input asp-for="Telefono" type="tel" maxlength="30" />
+                <span asp-validation-for="Telefono"></span>
+            </div>
+            <div class="campo">
+                <label asp-for="Correo"></label>
+                <input asp-for="Correo" type="email" maxlength="100" />
+                <span class="ayuda">Necesario para enviar los documentos automáticamente.</span>
+                <span asp-validation-for="Correo"></span>
+            </div>
+        </div>
+    </fieldset>
+
+    <div class="botonera">
+        <button type="submit" class="boton">Guardar</button>
+        @if (edicion)
+        {
+            <a class="boton boton-secundario" asp-action="Detalle" asp-route-id="@Model.Id">Cancelar</a>
+        }
+        else
+        {
+            <a class="boton boton-secundario" asp-action="Index">Cancelar</a>
+        }
+    </div>
+</form>

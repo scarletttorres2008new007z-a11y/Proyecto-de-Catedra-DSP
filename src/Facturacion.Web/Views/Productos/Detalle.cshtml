@@ -1,0 +1,31 @@
+@model Producto
+@inject Facturacion.Application.Abstracciones.IReloj Reloj
+@using Facturacion.Domain.Reglas
+@{
+    ViewData["Title"] = Model.Nombre;
+}
+<div class="encabezado-pagina">
+    <div>
+        <h1>@Model.Nombre</h1>
+        <p class="subtitulo"><span class="monoespaciado">@Model.Codigo</span> · @Presentacion.Activo(Model.Activo)</p>
+    </div>
+    <div class="acciones">
+        <a class="boton boton-secundario" asp-action="Editar" asp-route-id="@Model.Id">Editar</a>
+        <form method="post" asp-action="CambiarEstado" asp-route-id="@Model.Id" class="en-linea"
+              data-confirmar="@(Model.Activo ? "¿Desactivar este producto? No podrá agregarse a nuevos documentos." : "¿Activar este producto?")">
+            <input type="hidden" name="activo" value="@(!Model.Activo ? "true" : "false")" />
+            <button type="submit" class="boton boton-secundario">@(Model.Activo ? "Desactivar" : "Activar")</button>
+        </form>
+    </div>
+</div>
+<section class="tarjeta">
+    <dl class="datos">
+        <dt>Descripción</dt><dd>@(Model.Descripcion ?? "—")</dd>
+        <dt>Unidad de medida</dt><dd>@Catalogos.NombreUnidad(Model.UnidadMedida) (CAT-014: @Model.UnidadMedida)</dd>
+        <dt>Precio sin IVA</dt><dd>@Presentacion.Moneda(Model.PrecioSinIva) (CCF y nota de crédito)</dd>
+        <dt>Precio con IVA</dt><dd>@Presentacion.Moneda(CalculadoraImportes.PrecioDocumento(TipoDte.FacturaConsumidorFinal, Model.PrecioSinIva)) (factura de consumidor final)</dd>
+        <dt>Inventario</dt><dd>@(Model.ControlaInventario ? $"{Presentacion.Cantidad(Model.Existencias)} {Catalogos.NombreUnidad(Model.UnidadMedida).ToLowerInvariant()}" : "No se controla")</dd>
+        <dt>Registrado</dt><dd>@Presentacion.FechaHoraLocal(Model.CreadoUtc, Reloj)</dd>
+        <dt>Última modificación</dt><dd>@(Model.ModificadoUtc is { } m ? Presentacion.FechaHoraLocal(m, Reloj) : "—")</dd>
+    </dl>
+</section>

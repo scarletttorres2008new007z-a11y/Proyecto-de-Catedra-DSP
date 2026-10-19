@@ -1,0 +1,63 @@
+@model ProductoFormulario
+@{
+    var edicion = Model.Id > 0;
+    ViewData["Title"] = edicion ? "Editar producto" : "Registrar producto";
+}
+<div class="encabezado-pagina">
+    <div>
+        <h1>@ViewData["Title"]</h1>
+        <p class="subtitulo">Política de inventario: si activa "Controlar inventario", las facturas y CCF descuentan existencias al emitirse y las devuelven si se anulan. Las notas de crédito no mueven inventario.</p>
+    </div>
+</div>
+
+<form method="post" asp-action="@(edicion ? "Editar" : "Crear")" asp-route-id="@(edicion ? Model.Id : null)" class="formulario tarjeta" novalidate>
+    <partial name="_ResumenErrores" />
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="Version" />
+    <div class="campos">
+        <div class="campo">
+            <label asp-for="Codigo"></label>
+            <input asp-for="Codigo" maxlength="25" required />
+            <span asp-validation-for="Codigo"></span>
+        </div>
+        <div class="campo campo-ancho">
+            <label asp-for="Nombre"></label>
+            <input asp-for="Nombre" maxlength="200" required />
+            <span asp-validation-for="Nombre"></span>
+        </div>
+        <div class="campo campo-ancho">
+            <label asp-for="Descripcion"></label>
+            <textarea asp-for="Descripcion" maxlength="800"></textarea>
+            <span asp-validation-for="Descripcion"></span>
+        </div>
+        <div class="campo">
+            <label asp-for="PrecioSinIva"></label>
+            <input asp-for="PrecioSinIva" type="number" step="0.01" min="0.01" required />
+            <span class="ayuda">Dos decimales. El IVA se agrega según el tipo de documento.</span>
+            <span asp-validation-for="PrecioSinIva"></span>
+        </div>
+        <div class="campo">
+            <label asp-for="UnidadMedida"></label>
+            <select asp-for="UnidadMedida">
+                @foreach (var u in Catalogos.UnidadesMedida)
+                {
+                    <option value="@u.Key">@u.Value (CAT-014: @u.Key)</option>
+                }
+            </select>
+            <span asp-validation-for="UnidadMedida"></span>
+        </div>
+        <div class="campo">
+            <label class="casilla"><input asp-for="ControlaInventario" /> Controlar inventario</label>
+        </div>
+        <div class="campo">
+            <label asp-for="Existencias"></label>
+            <input asp-for="Existencias" type="number" step="0.0001" min="0" />
+            <span class="ayuda">Solo se usa si se controla el inventario. Un cambio aquí queda registrado como ajuste manual.</span>
+            <span asp-validation-for="Existencias"></span>
+        </div>
+    </div>
+    <div class="botonera">
+        <button type="submit" class="boton">Guardar</button>
+        <a class="boton boton-secundario" asp-action="@(edicion ? "Detalle" : "Index")" asp-route-id="@(edicion ? Model.Id : null)">Cancelar</a>
+    </div>
+</form>

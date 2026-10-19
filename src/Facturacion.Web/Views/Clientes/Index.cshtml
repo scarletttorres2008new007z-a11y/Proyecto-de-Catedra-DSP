@@ -1,0 +1,71 @@
+@model Pagina<Cliente>
+@{
+    ViewData["Title"] = "Clientes";
+    var tipo = ViewData["Tipo"] as TipoCliente?;
+    var estado = ViewData["Estado"] as string;
+}
+<div class="encabezado-pagina">
+    <div>
+        <h1>Clientes</h1>
+        <p class="subtitulo">Consumidores finales y contribuyentes que reciben documentos.</p>
+    </div>
+    <div class="acciones">
+        <a class="boton" asp-action="Crear">Registrar cliente</a>
+    </div>
+</div>
+
+<form method="get" asp-action="Index" class="filtros tarjeta">
+    <div class="campo campo-busqueda">
+        <label for="busqueda">Buscar por nombre, documento, NRC o correo</label>
+        <input type="search" id="busqueda" name="busqueda" value="@ViewData["Busqueda"]" />
+    </div>
+    <div class="campo">
+        <label for="tipo">Tipo</label>
+        <select id="tipo" name="tipo">
+            <option value="">Todos</option>
+            <option value="ConsumidorFinal" selected="@(tipo == TipoCliente.ConsumidorFinal)">Consumidor final</option>
+            <option value="Contribuyente" selected="@(tipo == TipoCliente.Contribuyente)">Contribuyente</option>
+        </select>
+    </div>
+    <div class="campo">
+        <label for="estado">Estado</label>
+        <select id="estado" name="estado">
+            <option value="">Todos</option>
+            <option value="activos" selected="@(estado == "activos")">Activos</option>
+            <option value="inactivos" selected="@(estado == "inactivos")">Inactivos</option>
+        </select>
+    </div>
+    <button type="submit" class="boton boton-secundario" data-sin-bloqueo>Filtrar</button>
+</form>
+
+@if (Model.Total == 0)
+{
+    <div class="tarjeta vacio">
+        <p>No hay clientes que coincidan con la búsqueda.</p>
+        <div class="acciones"><a class="boton" asp-action="Crear">Registrar el primer cliente</a></div>
+    </div>
+}
+else
+{
+    <div class="tarjeta tabla-contenedor">
+        <table class="tabla">
+            <thead>
+            <tr><th>Nombre</th><th>Tipo</th><th>Documento</th><th>NRC</th><th>Correo</th><th>Estado</th></tr>
+            </thead>
+            <tbody>
+            @foreach (var c in Model.Elementos)
+            {
+                <tr>
+                    <td><a asp-action="Detalle" asp-route-id="@c.Id">@c.Nombre</a></td>
+                    <td>@Presentacion.TipoCliente(c.Tipo)</td>
+                    <td>@(c.NumeroDocumento is null ? "—" : $"{Catalogos.NombreTipoDocumento(c.TipoDocumento)} {c.NumeroDocumento}")</td>
+                    <td>@(c.Nrc ?? "—")</td>
+                    <td>@(c.Correo ?? "—")</td>
+                    <td>@Presentacion.Activo(c.Activo)</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+        <partial name="_Paginacion" model="(Model.NumeroPagina, Model.TotalPaginas, Model.Total)" />
+    </div>
+}

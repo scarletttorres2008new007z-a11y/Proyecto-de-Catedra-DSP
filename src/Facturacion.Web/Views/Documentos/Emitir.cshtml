@@ -1,0 +1,151 @@
+@model EmisionVista
+@using Facturacion.Domain.Reglas
+@{
+    var s = Model.Solicitud;
+    ViewData["Title"] = $"Emitir {TiposDteInfo.NombreCorto(s.Tipo)}";
+    var incluyeIva = TiposDteInfo.PrecioIncluyeIva(s.Tipo);
+}
+<div class="encabezado-pagina">
+    <div>
+        <h1>Emitir documento</h1>
+        <p class="subtitulo">Paso 1 de 2: datos del documento. Los importes se calculan en el servidor en el siguiente paso.</p>
+    </div>
+</div>
+
+@if (!Model.EmisorConfigurado)
+{
+    <div class="alerta alerta-aviso">Faltan los datos del emisor. Un administrador debe completarlos en <a asp-controller="Configuracion" asp-action="Index">Configuración</a> antes de emitir.</div>
+}
+
+<form method="post" asp-action="Revisar" class="formulario" novalidate>
+    <partial name="_ResumenErrores" />
+
+    <fieldset class="tarjeta">
+        <legend>Documento y cliente</legend>
+        <div class="campos">
+            <div class="campo">
+                <label for="tipo">Tipo de documento</label>
+                <select id="tipo" name="Solicitud.Tipo" data-cambiar-tipo="@Url.Action("Emitir")">
+                    <option value="FacturaConsumidorFinal" selected="@(s.Tipo == TipoDte.FacturaConsumidorFinal)">Factura de consumidor final electrónica</option>
+                    <option value="ComprobanteCreditoFiscal" selected="@(s.Tipo == TipoDte.ComprobanteCreditoFiscal)">Comprobante de crédito fiscal electrónico</option>
+                    <option value="NotaCredito">Nota de crédito electrónica</option>
+                </select>
+                <span class="ayuda">@(incluyeIva ? "Precios con IVA incluido; cualquier cliente activo." : "Precios sin IVA; el IVA 13 % se suma al total. Solo contribuyentes.")</span>
+            </div>
+            <div class="campo">
+                <label for="cliente">Cliente</label>
+                <select id="cliente" name="Solicitud.ClienteId" required>
+                    <option value="0">Seleccione un cliente</option>
+                    @foreach (var c in Model.Clientes)
+                    {
+                        <option value="@c.Id" selected="@(c.Id == s.ClienteId)">@c.Nombre @(c.NumeroDocumento is null ? "" : $"({c.NumeroDocumento})")@(c.Correo is null ? " · sin correo" : "")</option>
+                    }
+                </select>
+                <span class="ayuda">
+                    @if (Model.Clientes.Count == 0)
+                    {
+                        <text>No hay clientes aptos. </text>
+                    }
+                    <a asp-controller="Clientes" asp-action="Crear" asp-route-tipo="@(s.Tipo == TipoDte.FacturaConsumidorFinal ? TipoCliente.ConsumidorFinal : TipoCliente.Contribuyente)"
+                       asp-route-volverA="@Url.Action("Emitir", new { tipo = s.Tipo })">Registrar un cliente nuevo</a>
+                </span>
+            </div>
+            <div class="campo">
+                <label for="formaPago">Forma de pago (contado)</label>
+                <select id="formaPago" name="Solicitud.FormaPago">
+                    @foreach (var fp in Catalogos.FormasPago)
+                    {
+                        <option value="@fp.Key" selected="@(fp.Key == s.FormaPago)">@fp.Value</option>
+                    }
+                </select>
+            </div>
+            <div class="campo campo-ancho">
+                <label for="observaciones">Observaciones (opcional)</label>
+                <textarea id="observaciones" name="Solicitud.Observaciones" maxlength="500">@s.Observaciones</textarea>
+            </div>
+        </div>
+    </fieldset>
+
+    <fieldset class="tarjeta">
+        <legend>Productos</legend>
+        @if (Model.Productos.Count == 0)
+        {
+            <div class="vacio">
+                <p>No hay productos activos.</p>
+                <div class="acciones"><a class="boton" asp-controller="Productos" asp-action="Crear">Registrar producto</a></div>
+            </div>
+        }
+        <div class="tabla-contenedor">
+            <table class="tabla lineas" data-lineas>
+                <thead>
+                <tr>
+                    <th>N.°</th>
+                    <th>Producto</th>
+                    <th class="derecha">Precio unit. @(incluyeIva ? "(con IVA)" : "(sin IVA)")</th>
+                    <th>Cantidad</th>
+                    <th>Descuento (US$)</th>
+                    <th><span class="sr-only">Acciones</span></th>
+                </tr>
+                </thead>
+                <tbody>
+                @for (var i = 0; i < s.Lineas.Count; i++)
+                {
+                    var l = s.Lineas[i];
+                    <tr>
+                        <td data-numero>@(i + 1)</td>
+                        <td>
+                            <label class="sr-only" for="linea-@i-ProductoId">Producto</label>
+                            <select data-nombre="ProductoId" name="Solicitud.Lineas[@i].ProductoId" id="linea-@i-ProductoId">
+                                <option value="0">Seleccione</option>
+                                @foreach (var p in Model.Productos)
+                                {
+                                    <option value="@p.Id" selected="@(p.Id == l.ProductoId)" data-precio-documento="@CalculadoraImportes.PrecioDocumento(s.Tipo, p.PrecioSinIva).ToString("0.00")">
+                                        @p.Codigo · @p.Nombre@(p.ControlaInventario ? $" (exist. {Presentacion.Cantidad(p.Existencias)})" : "")
+                                    </option>
+                                }
+                            </select>
+                        </td>
+                        <td class="derecha nowrap" data-precio>—</td>
+                        <td>
+                            <label class="sr-only" for="linea-@i-Cantidad">Cantidad</label>
+                            <input type="number" data-nombre="Cantidad" name="Solicitud.Lineas[@i].Cantidad" id="linea-@i-Cantidad" value="@l.Cantidad.ToString("0.####")" step="0.0001" min="0.0001" />
+                        </td>
+                        <td>
+                            <label class="sr-only" for="linea-@i-Descuento">Descuento</label>
+                            <input type="number" data-nombre="Descuento" name="Solicitud.Lineas[@i].Descuento" id="linea-@i-Descuento" value="@l.Descuento.ToString("0.00")" step="0.01" min="0" />
+                        </td>
+                        <td><button type="button" class="boton boton-secundario boton-pequeno" data-quitar-linea>Quitar</button></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <template id="plantilla-linea">
+            <tr>
+                <td data-numero></td>
+                <td>
+                    <select data-nombre="ProductoId" aria-label="Producto">
+                        <option value="0">Seleccione</option>
+                        @foreach (var p in Model.Productos)
+                        {
+                            <option value="@p.Id" data-precio-documento="@CalculadoraImportes.PrecioDocumento(s.Tipo, p.PrecioSinIva).ToString("0.00")">@p.Codigo · @p.Nombre@(p.ControlaInventario ? $" (exist. {Presentacion.Cantidad(p.Existencias)})" : "")</option>
+                        }
+                    </select>
+                </td>
+                <td class="derecha nowrap" data-precio>—</td>
+                <td><input type="number" data-nombre="Cantidad" value="1" step="0.0001" min="0.0001" aria-label="Cantidad" /></td>
+                <td><input type="number" data-nombre="Descuento" value="0.00" step="0.01" min="0" aria-label="Descuento" /></td>
+                <td><button type="button" class="boton boton-secundario boton-pequeno" data-quitar-linea>Quitar</button></td>
+            </tr>
+        </template>
+        <div class="botonera">
+            <button type="button" class="boton boton-secundario" data-agregar-linea>Agregar producto</button>
+            <span class="ayuda">El precio mostrado es informativo; el servidor recalcula todo al revisar y al confirmar.</span>
+        </div>
+    </fieldset>
+
+    <div class="botonera">
+        <button type="submit" class="boton">Revisar cálculos</button>
+        <a class="boton boton-secundario" asp-action="Index">Cancelar</a>
+    </div>
+</form>

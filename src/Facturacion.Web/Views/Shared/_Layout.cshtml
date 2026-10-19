@@ -1,0 +1,73 @@
+﻿@{
+    var autenticado = User.Identity?.IsAuthenticated == true;
+    var esAdmin = User.IsInRole(Roles.Administrador);
+    var controlador = ViewContext.RouteData.Values["controller"]?.ToString();
+    string Activo(string c) => string.Equals(controlador, c, StringComparison.OrdinalIgnoreCase) ? "activo" : "";
+}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] · Facturación electrónica</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="@(autenticado ? "con-menu" : "sin-menu")">
+@if (autenticado)
+{
+    <header class="barra-superior">
+        <button type="button" class="boton-menu" aria-controls="menu-principal" aria-expanded="false" data-alternar-menu>
+            <span class="sr-only">Abrir menú</span>
+            <span aria-hidden="true">☰</span>
+        </button>
+        <a class="marca" asp-controller="Inicio" asp-action="Index">Facturación DTE</a>
+        <span class="etiqueta-modo" title="No hay conexión con el Ministerio de Hacienda">Modo académico</span>
+        <div class="usuario">
+            <span class="usuario-nombre">@User.Identity!.Name</span>
+            <a asp-controller="Cuenta" asp-action="CambiarContrasena">Contraseña</a>
+            <form asp-controller="Cuenta" asp-action="CerrarSesion" method="post" class="en-linea">
+                <button type="submit" class="boton-enlace">Cerrar sesión</button>
+            </form>
+        </div>
+    </header>
+    <nav id="menu-principal" class="menu" aria-label="Menú principal">
+        <ul>
+            <li><a class="@Activo("Inicio")" asp-controller="Inicio" asp-action="Index">Panel</a></li>
+            <li class="menu-titulo">Operación</li>
+            <li><a class="@Activo("Documentos")" asp-controller="Documentos" asp-action="Index">Documentos</a></li>
+            <li><a asp-controller="Documentos" asp-action="Emitir" asp-route-tipo="FacturaConsumidorFinal">Nueva factura</a></li>
+            <li><a asp-controller="Documentos" asp-action="Emitir" asp-route-tipo="ComprobanteCreditoFiscal">Nuevo CCF</a></li>
+            <li><a asp-controller="Documentos" asp-action="NotaCredito">Nueva nota de crédito</a></li>
+            <li><a class="@Activo("Clientes")" asp-controller="Clientes" asp-action="Index">Clientes</a></li>
+            <li><a class="@Activo("Productos")" asp-controller="Productos" asp-action="Index">Productos</a></li>
+            @if (esAdmin)
+            {
+                <li class="menu-titulo">Administración</li>
+                <li><a class="@Activo("Anulaciones")" asp-controller="Anulaciones" asp-action="Index">Anulaciones</a></li>
+                <li><a class="@Activo("Auditoria")" asp-controller="Auditoria" asp-action="Index">Historial de operaciones</a></li>
+                <li><a class="@Activo("Respaldos")" asp-controller="Respaldos" asp-action="Index">Copias de seguridad</a></li>
+                <li><a class="@Activo("Configuracion")" asp-controller="Configuracion" asp-action="Index">Configuración</a></li>
+                <li><a class="@Activo("Usuarios")" asp-controller="Usuarios" asp-action="Index">Usuarios</a></li>
+            }
+        </ul>
+    </nav>
+}
+<main class="contenido" id="contenido">
+    @if (TempData["Exito"] is string exito)
+    {
+        <div class="alerta alerta-exito" role="status">@exito</div>
+    }
+    @if (TempData["Aviso"] is string aviso)
+    {
+        <div class="alerta alerta-aviso" role="status">@aviso</div>
+    }
+    @if (TempData["Error"] is string error)
+    {
+        <div class="alerta alerta-error" role="alert">@error</div>
+    }
+    @RenderBody()
+</main>
+<script src="~/js/site.js" asp-append-version="true"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

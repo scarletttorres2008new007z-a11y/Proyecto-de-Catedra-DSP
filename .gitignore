@@ -1,0 +1,27 @@
+# Compilación
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.vscode/
+.idea/
+TestResults/
+*.trx
+
+# Datos generados en tiempo de ejecución (nunca se suben)
+**/App_Data/
+**/Logs/
+*.bak
+*.db
+*.db-shm
+*.db-wal
+
+# Secretos locales
+appsettings.*.local.json
+secrets.json
+.env
+*.pfx
+*.p12
+*.crt
+*.key

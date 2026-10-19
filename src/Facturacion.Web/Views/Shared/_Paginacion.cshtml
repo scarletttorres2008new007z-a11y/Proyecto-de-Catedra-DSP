@@ -1,0 +1,23 @@
+@model (int Pagina, int TotalPaginas, int Total)
+@{
+    var consulta = Context.Request.Query.Where(q => q.Key != "pagina").ToDictionary(q => q.Key, q => q.Value.ToString());
+    Dictionary<string, string> Con(int p) { var d = new Dictionary<string, string>(consulta) { ["pagina"] = p.ToString() }; return d; }
+}
+@if (Model.TotalPaginas > 1)
+{
+    <nav class="paginacion" aria-label="Paginación">
+        <span class="texto-suave">@Model.Total registros · página @Model.Pagina de @Model.TotalPaginas</span>
+        @if (Model.Pagina > 1)
+        {
+            <a class="boton boton-secundario boton-pequeno" asp-all-route-data="Con(Model.Pagina - 1)">Anterior</a>
+        }
+        @if (Model.Pagina < Model.TotalPaginas)
+        {
+            <a class="boton boton-secundario boton-pequeno" asp-all-route-data="Con(Model.Pagina + 1)">Siguiente</a>
+        }
+    </nav>
+}
+else if (Model.Total > 0)
+{
+    <p class="paginacion texto-suave">@Model.Total registro(s)</p>
+}

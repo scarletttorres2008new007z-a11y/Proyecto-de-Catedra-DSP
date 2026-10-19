@@ -1,0 +1,83 @@
+@model Pagina<RegistroAuditoria>
+@inject Facturacion.Application.Abstracciones.IReloj Reloj
+@{
+    ViewData["Title"] = "Historial de operaciones";
+    var f = (FiltroAuditoria)ViewData["Filtro"]!;
+    var acciones = (List<string>)ViewData["Acciones"]!;
+}
+<div class="encabezado-pagina">
+    <div>
+        <h1>Historial de operaciones</h1>
+        <p class="subtitulo">Registro de solo lectura. La aplicación no permite modificar ni eliminar registros y la base de datos lo impide con un desencadenador.</p>
+    </div>
+</div>
+
+<form method="get" asp-action="Index" class="filtros tarjeta">
+    <div class="campo">
+        <label for="desde">Desde</label>
+        <input type="date" id="desde" name="desde" value="@f.Desde?.ToString("yyyy-MM-dd")" />
+    </div>
+    <div class="campo">
+        <label for="hasta">Hasta</label>
+        <input type="date" id="hasta" name="hasta" value="@f.Hasta?.ToString("yyyy-MM-dd")" />
+    </div>
+    <div class="campo">
+        <label for="accion">Tipo de operación</label>
+        <select id="accion" name="accion">
+            <option value="">Todas</option>
+            @foreach (var a in acciones) { <option value="@a" selected="@(f.Accion == a)">@a</option> }
+        </select>
+    </div>
+    <div class="campo">
+        <label for="resultado">Resultado</label>
+        <select id="resultado" name="resultado">
+            <option value="">Todos</option>
+            @foreach (var r in Enum.GetValues<ResultadoOperacion>()) { <option value="@r" selected="@(f.Resultado == r)">@r</option> }
+        </select>
+    </div>
+    <div class="campo">
+        <label for="identificador">Identificador</label>
+        <input type="search" id="identificador" name="identificador" value="@f.Identificador" placeholder="Id, número de control, código…" />
+    </div>
+    <div class="campo">
+        <label for="usuario">Usuario</label>
+        <input type="search" id="usuario" name="usuario" value="@f.Usuario" />
+    </div>
+    <button type="submit" class="boton boton-secundario" data-sin-bloqueo>Filtrar</button>
+</form>
+
+@if (Model.Total == 0)
+{
+    <div class="tarjeta vacio"><p>No hay operaciones que coincidan con los filtros.</p></div>
+}
+else
+{
+    <div class="tarjeta tabla-contenedor">
+        <table class="tabla">
+            <thead><tr><th>Fecha</th><th>Usuario</th><th>Operación</th><th>Entidad</th><th>Resultado</th><th>Detalle</th></tr></thead>
+            <tbody>
+            @foreach (var a in Model.Elementos)
+            {
+                <tr>
+                    <td class="nowrap">@Presentacion.FechaHoraLocal(a.FechaUtc, Reloj)</td>
+                    <td>@a.Usuario</td>
+                    <td>@a.Accion</td>
+                    <td>
+                        @if (a.Entidad == nameof(DocumentoTributario) && int.TryParse(a.EntidadId, out var docId))
+                        {
+                            <a asp-controller="Documentos" asp-action="Detalle" asp-route-id="@docId">Documento @docId</a>
+                        }
+                        else
+                        {
+                            @($"{a.Entidad} {a.EntidadId}".Trim())
+                        }
+                    </td>
+                    <td>@Presentacion.Resultado(a.Resultado)</td>
+                    <td>@a.Detalle</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+        <partial name="_Paginacion" model="(Model.NumeroPagina, Model.TotalPaginas, Model.Total)" />
+    </div>
+}

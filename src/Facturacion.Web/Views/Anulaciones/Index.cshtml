@@ -1,0 +1,57 @@
+@model Pagina<Anulacion>
+@inject Facturacion.Application.Abstracciones.IReloj Reloj
+@inject Microsoft.Extensions.Options.IOptions<Facturacion.Application.Configuracion.OpcionesAnulacion> Plazos
+@{
+    ViewData["Title"] = "Anulaciones";
+    var estado = ViewData["Estado"] as EstadoAnulacion?;
+}
+<div class="encabezado-pagina">
+    <div>
+        <h1>Anulaciones</h1>
+        <p class="subtitulo">Para anular, abra el documento y use el botón "Anular". Plazos configurados:
+            factura @Plazos.Value.Plazo(TipoDte.FacturaConsumidorFinal), CCF @Plazos.Value.Plazo(TipoDte.ComprobanteCreditoFiscal),
+            nota de crédito @Plazos.Value.Plazo(TipoDte.NotaCredito).</p>
+    </div>
+    <div class="acciones"><a class="boton boton-secundario" asp-controller="Documentos" asp-action="Index" asp-route-estado="Emitido">Buscar documento</a></div>
+</div>
+
+<form method="get" asp-action="Index" class="filtros tarjeta">
+    <div class="campo">
+        <label for="estado">Estado</label>
+        <select id="estado" name="estado">
+            <option value="">Todos</option>
+            @foreach (var e in Enum.GetValues<EstadoAnulacion>())
+            {
+                <option value="@e" selected="@(estado == e)">@e</option>
+            }
+        </select>
+    </div>
+    <button type="submit" class="boton boton-secundario" data-sin-bloqueo>Filtrar</button>
+</form>
+
+@if (Model.Total == 0)
+{
+    <div class="tarjeta vacio"><p>No hay anulaciones registradas.</p></div>
+}
+else
+{
+    <div class="tarjeta tabla-contenedor">
+        <table class="tabla">
+            <thead><tr><th>Solicitada</th><th>Documento</th><th>Tipo</th><th>Motivo</th><th>Usuario</th><th>Estado</th></tr></thead>
+            <tbody>
+            @foreach (var a in Model.Elementos)
+            {
+                <tr>
+                    <td class="nowrap">@Presentacion.FechaHoraLocal(a.SolicitadaUtc, Reloj)</td>
+                    <td><a class="monoespaciado" asp-controller="Documentos" asp-action="Detalle" asp-route-id="@a.DocumentoId">@a.Documento?.NumeroControl</a></td>
+                    <td>@((int)a.Tipo)</td>
+                    <td>@a.Motivo</td>
+                    <td>@a.Usuario</td>
+                    <td>@Presentacion.EstadoAnulacion(a.Estado)</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+        <partial name="_Paginacion" model="(Model.NumeroPagina, Model.TotalPaginas, Model.Total)" />
+    </div>
+}

@@ -1,0 +1,109 @@
+@model NotaCreditoVista
+@{
+    ViewData["Title"] = "Emitir nota de crédito";
+    var s = Model.Solicitud;
+}
+<div class="encabezado-pagina">
+    <div>
+        <h1>Nota de crédito electrónica</h1>
+        <p class="subtitulo">Solo se emite sobre un comprobante de crédito fiscal vigente, al mismo receptor, y por cantidades que no superen lo pendiente de acreditar.</p>
+    </div>
+</div>
+
+<partial name="_ResumenErrores" />
+
+@if (Model.Ccf is null)
+{
+    <section class="tarjeta">
+        <h2>Seleccione el comprobante de crédito fiscal</h2>
+        @if (Model.CcfDisponibles.Count == 0)
+        {
+            <div class="vacio">
+                <p>No hay comprobantes de crédito fiscal vigentes sobre los que emitir una nota de crédito.</p>
+                <div class="acciones"><a class="boton" asp-action="Emitir" asp-route-tipo="ComprobanteCreditoFiscal">Emitir un CCF</a></div>
+            </div>
+        }
+        else
+        {
+            <div class="tabla-contenedor">
+                <table class="tabla">
+                    <thead><tr><th>Fecha</th><th>Número de control</th><th>Cliente</th><th class="derecha">Total</th><th></th></tr></thead>
+                    <tbody>
+                    @foreach (var d in Model.CcfDisponibles)
+                    {
+                        <tr>
+                            <td>@Presentacion.Fecha(d.FechaEmision)</td>
+                            <td class="monoespaciado">@d.NumeroControl</td>
+                            <td>@d.ReceptorNombre</td>
+                            <td class="derecha">@Presentacion.Moneda(d.TotalPagar)</td>
+                            <td><a class="boton boton-pequeno" asp-action="NotaCredito" asp-route-ccfId="@d.Id">Seleccionar</a></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+}
+else
+{
+    var ccf = Model.Ccf;
+    <section class="tarjeta">
+        <h2>Comprobante relacionado</h2>
+        <dl class="datos">
+            <dt>Número de control</dt><dd class="monoespaciado">@ccf.NumeroControl</dd>
+            <dt>Código de generación</dt><dd class="monoespaciado">@Facturacion.Application.Dte.GeneradorDteJson.Codigo(ccf.CodigoGeneracion)</dd>
+            <dt>Fecha</dt><dd>@Presentacion.Fecha(ccf.FechaEmision)</dd>
+            <dt>Receptor</dt><dd>@ccf.ReceptorNombre (NIT @ccf.ReceptorNumDocumento, NRC @ccf.ReceptorNrc)</dd>
+            <dt>Total del CCF</dt><dd>@Presentacion.Moneda(ccf.MontoTotalOperacion)</dd>
+        </dl>
+        <p><a asp-action="NotaCredito">Elegir otro comprobante</a></p>
+    </section>
+
+    <form method="post" asp-action="Revisar" class="formulario" novalidate>
+        <input type="hidden" name="Solicitud.Tipo" value="NotaCredito" />
+        <input type="hidden" name="Solicitud.DocumentoRelacionadoId" value="@ccf.Id" />
+        <input type="hidden" name="Solicitud.ClienteId" value="@ccf.ClienteId" />
+        <input type="hidden" name="Solicitud.FormaPago" value="01" />
+        <fieldset class="tarjeta">
+            <legend>Cantidades a acreditar</legend>
+            <div class="tabla-contenedor">
+                <table class="tabla lineas">
+                    <thead>
+                    <tr><th>N.°</th><th>Código</th><th>Descripción</th><th class="derecha">Precio sin IVA</th><th class="derecha">Cantidad original</th><th class="derecha">Ya acreditado</th><th class="derecha">Disponible</th><th>A acreditar</th></tr>
+                    </thead>
+                    <tbody>
+                    @for (var i = 0; i < Model.Lineas.Count; i++)
+                    {
+                        var l = Model.Lineas[i];
+                        var solicitado = s.LineasNotaCredito.FirstOrDefault(x => x.DetalleRelacionadoId == l.Linea.Id)?.Cantidad ?? 0;
+                        <tr>
+                            <td>@l.Linea.NumItem</td>
+                            <td class="monoespaciado">@l.Linea.Codigo</td>
+                            <td>@l.Linea.Descripcion</td>
+                            <td class="derecha">@Presentacion.Moneda(l.Linea.PrecioUnitario)</td>
+                            <td class="derecha">@Presentacion.Cantidad(l.Linea.Cantidad)</td>
+                            <td class="derecha">@Presentacion.Cantidad(l.YaAcreditado)</td>
+                            <td class="derecha">@Presentacion.Cantidad(l.Disponible)</td>
+                            <td>
+                                <input type="hidden" name="Solicitud.LineasNotaCredito[@i].DetalleRelacionadoId" value="@l.Linea.Id" />
+                                <label class="sr-only" for="nc-@i">Cantidad a acreditar en la línea @l.Linea.NumItem</label>
+                                <input type="number" id="nc-@i" name="Solicitud.LineasNotaCredito[@i].Cantidad" value="@solicitado.ToString("0.####")" min="0" max="@l.Disponible.ToString("0.####")" step="0.0001" disabled="@(l.Disponible <= 0)" />
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+            <p class="ayuda">El precio es el del CCF original. Si la línea tuvo descuento, se acredita en proporción a la cantidad.</p>
+            <div class="campo campo-ancho">
+                <label for="observaciones">Motivo u observaciones</label>
+                <textarea id="observaciones" name="Solicitud.Observaciones" maxlength="500">@s.Observaciones</textarea>
+            </div>
+        </fieldset>
+        <div class="botonera">
+            <button type="submit" class="boton">Revisar cálculos</button>
+            <a class="boton boton-secundario" asp-action="Detalle" asp-route-id="@ccf.Id">Cancelar</a>
+        </div>
+    </form>
+}

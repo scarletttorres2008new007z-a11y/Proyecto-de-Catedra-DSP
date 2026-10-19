@@ -1,0 +1,234 @@
+@model DetalleDocumentoVista
+@inject Facturacion.Application.Abstracciones.IReloj Reloj
+@using Facturacion.Application.Dte
+@{
+    var d = Model.Documento;
+    ViewData["Title"] = $"{TiposDteInfo.NombreCorto(d.Tipo)} {d.NumeroControl}";
+    var incluyeIva = TiposDteInfo.PrecioIncluyeIva(d.Tipo);
+    var envios = d.Envios.OrderBy(e => e.NumeroIntento).ToList();
+    var hayPendientes = envios.Any(e => e.Estado == EstadoEnvio.Pendiente);
+    var ultimoEnvio = envios.LastOrDefault(e => e.Motivo != MotivoEnvio.NotificacionAnulacion);
+    var anulacion = d.Anulaciones.OrderByDescending(a => a.Id).FirstOrDefault();
+    var esAdmin = User.IsInRole(Roles.Administrador);
+}
+<div class="encabezado-pagina" data-monitor-envios="@(hayPendientes ? Url.Action("EstadoEnvios", new { id = d.Id }) : null)">
+    <div>
+        <h1>@TiposDteInfo.Nombre(d.Tipo)</h1>
+        <p class="subtitulo"><span class="monoespaciado">@d.NumeroControl</span> · @Presentacion.EstadoDocumento(d.Estado, d.Modo)</p>
+    </div>
+    <div class="acciones">
+        @foreach (var a in d.Archivos.Where(a => a.Proposito != PropositoArchivo.AnulacionJson))
+        {
+            <a class="boton boton-secundario" asp-action="Archivo" asp-route-id="@d.Id" asp-route-archivoId="@a.Id">Descargar @(a.Proposito == PropositoArchivo.DocumentoPdf ? "PDF" : "JSON")</a>
+        }
+        @if (Model.PuedeEmitirNotaCredito)
+        {
+            <a class="boton boton-secundario" asp-action="NotaCredito" asp-route-ccfId="@d.Id">Emitir nota de crédito</a>
+        }
+        @if (esAdmin && Model.Anulacion is { Permitida: true })
+        {
+            <a class="boton boton-peligro" asp-controller="Anulaciones" asp-action="Solicitar" asp-route-documentoId="@d.Id">Anular</a>
+        }
+    </div>
+</div>
+
+@if (d.Modo == ModoOperacion.Academico)
+{
+    <div class="alerta alerta-aviso">
+        Documento generado en <strong>modo académico</strong>: no fue transmitido al Ministerio de Hacienda, no tiene sello de recepción ni firma electrónica y no tiene validez tributaria.
+        El código de generación y el número de control fueron generados por el sistema emisor.
+    </div>
+}
+
+<div class="rejilla rejilla-2">
+    <section class="tarjeta">
+        <h2>Identificación</h2>
+        <dl class="datos">
+            <dt>Código de generación</dt><dd class="monoespaciado">@GeneradorDteJson.Codigo(d.CodigoGeneracion)</dd>
+            <dt>Número de control</dt><dd class="monoespaciado">@d.NumeroControl</dd>
+            <dt>Fecha y hora</dt><dd>@Presentacion.Fecha(d.FechaEmision) @d.HoraEmision.ToString("HH:mm:ss") (hora de El Salvador)</dd>
+            <dt>Versión del esquema</dt><dd>@d.VersionEsquema · ambiente @d.Ambiente (pruebas)</dd>
+            <dt>Emisor</dt><dd>@(Model.Emisor.NombreComercial ?? Model.Emisor.Nombre) · NIT @Model.Emisor.Nit · NRC @Model.Emisor.Nrc</dd>
+            <dt>Emitido por</dt><dd>@d.UsuarioEmisor</dd>
+            @if (d.DocumentoRelacionado is not null)
+            {
+                <dt>Documento relacionado</dt>
+                <dd><a class="monoespaciado" asp-action="Detalle" asp-route-id="@d.DocumentoRelacionado.Id">@d.DocumentoRelacionado.NumeroControl</a> (@Presentacion.Fecha(d.DocumentoRelacionado.FechaEmision))</dd>
+            }
+        </dl>
+    </section>
+    <section class="tarjeta">
+        <h2>Receptor</h2>
+        <dl class="datos">
+            <dt>Nombre</dt><dd><a asp-controller="Clientes" asp-action="Detalle" asp-route-id="@d.ClienteId">@d.ReceptorNombre</a></dd>
+            @if (d.ReceptorNumDocumento is not null)
+            {
+                <dt>@Catalogos.NombreTipoDocumento(d.ReceptorTipoDocumento)</dt><dd>@d.ReceptorNumDocumento</dd>
+            }
+            @if (d.ReceptorNrc is not null)
+            {
+                <dt>NRC</dt><dd>@d.ReceptorNrc</dd>
+            }
+            @if (d.ReceptorCodActividad is not null)
+            {
+                <dt>Actividad</dt><dd>@d.ReceptorCodActividad - @d.ReceptorDescActividad</dd>
+            }
+            <dt>Correo</dt><dd>@(d.ReceptorCorreo ?? "Sin correo")</dd>
+        </dl>
+        <p class="ayuda">Datos guardados al momento de la emisión.</p>
+    </section>
+</div>
+
+<section class="tarjeta">
+    <h2>Detalle</h2>
+    <div class="tabla-contenedor">
+        <table class="tabla">
+            <thead>
+            <tr><th>N.°</th><th>Código</th><th>Descripción</th><th class="derecha">Cantidad</th><th class="derecha">Precio unit. @(incluyeIva ? "(con IVA)" : "(sin IVA)")</th><th class="derecha">Descuento</th><th class="derecha">Venta gravada</th></tr>
+            </thead>
+            <tbody>
+            @foreach (var l in d.Detalles.OrderBy(x => x.NumItem))
+            {
+                <tr>
+                    <td>@l.NumItem</td>
+                    <td class="monoespaciado">@l.Codigo</td>
+                    <td>@l.Descripcion</td>
+                    <td class="derecha">@Presentacion.Cantidad(l.Cantidad) @Catalogos.NombreUnidad(l.UnidadMedida).ToLowerInvariant()</td>
+                    <td class="derecha">@Presentacion.Moneda(l.PrecioUnitario)</td>
+                    <td class="derecha">@Presentacion.Moneda(l.MontoDescuento)</td>
+                    <td class="derecha">@Presentacion.Moneda(l.VentaGravada)</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <table class="tabla-totales">
+        <tr><td>Suma de ventas gravadas</td><td>@Presentacion.Moneda(d.TotalGravada)</td></tr>
+        <tr><td>Descuentos aplicados</td><td>@Presentacion.Moneda(d.TotalDescuento)</td></tr>
+        @if (incluyeIva)
+        {
+            <tr><td>IVA incluido (13 %)</td><td>@Presentacion.Moneda(d.TotalIva)</td></tr>
+            <tr class="total"><td>Total a pagar</td><td>@Presentacion.Moneda(d.TotalPagar)</td></tr>
+        }
+        else
+        {
+            <tr><td>IVA 13 %</td><td>@Presentacion.Moneda(d.TotalIva)</td></tr>
+            <tr class="total"><td>@(d.Tipo == TipoDte.NotaCredito ? "Monto total acreditado" : "Total a pagar")</td><td>@Presentacion.Moneda(d.MontoTotalOperacion)</td></tr>
+        }
+    </table>
+    <p class="texto-suave">@d.TotalLetras</p>
+    @if (d.Observaciones is not null)
+    {
+        <p><strong>Observaciones:</strong> @d.Observaciones</p>
+    }
+</section>
+
+<section class="tarjeta">
+    <h2>Archivos generados</h2>
+    <div class="tabla-contenedor">
+        <table class="tabla">
+            <thead><tr><th>Archivo</th><th>Contenido</th><th>Versión</th><th class="derecha">Tamaño</th><th>SHA-256</th><th>Generado</th></tr></thead>
+            <tbody>
+            @foreach (var a in d.Archivos.OrderBy(a => a.Id))
+            {
+                <tr>
+                    <td><a class="monoespaciado" asp-action="Archivo" asp-route-id="@d.Id" asp-route-archivoId="@a.Id">@a.NombreArchivo</a></td>
+                    <td>@(a.Proposito switch { PropositoArchivo.DocumentoJson => "JSON del documento", PropositoArchivo.DocumentoPdf => "Representación gráfica (PDF)", _ => "JSON del evento de anulación" })</td>
+                    <td>@a.Version</td>
+                    <td class="derecha">@Presentacion.Tamano(a.TamanoBytes)</td>
+                    <td class="monoespaciado texto-suave">@a.Sha256[..16]…</td>
+                    <td class="nowrap">@Presentacion.FechaHoraLocal(a.GeneradoUtc, Reloj)</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="tarjeta">
+    <h2>Envíos por correo</h2>
+    <p class="ayuda">"Enviado al servidor SMTP" significa que el servidor de correo aceptó el mensaje; no confirma que el cliente lo haya recibido o leído.</p>
+    @if (envios.Count == 0)
+    {
+        <p class="vacio">No hay intentos de envío.</p>
+    }
+    else
+    {
+        <div class="tabla-contenedor">
+            <table class="tabla">
+                <thead><tr><th>Intento</th><th>Motivo</th><th>Destinatario</th><th>Registrado</th><th>Estado</th><th>Detalle</th></tr></thead>
+                <tbody>
+                @foreach (var e in envios)
+                {
+                    <tr>
+                        <td>@e.NumeroIntento</td>
+                        <td>@Presentacion.Motivo(e.Motivo)</td>
+                        <td>@(string.IsNullOrEmpty(e.Destinatario) ? "(sin correo)" : e.Destinatario)</td>
+                        <td class="nowrap">@Presentacion.FechaHoraLocal(e.CreadoUtc, Reloj)</td>
+                        <td>@Presentacion.EstadoEnvio(e.Estado)</td>
+                        <td>
+                            @if (e.MensajeError is not null) { <span class="text-danger">@e.MensajeError</span> }
+                            else if (e.IdProveedor is not null) { <span class="monoespaciado texto-suave">@e.IdProveedor</span> }
+                            else if (e.Estado == EstadoEnvio.Pendiente) { <span class="texto-suave">Procesando…</span> }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+    <form method="post" asp-action="Reenviar" asp-route-id="@d.Id" class="filtros" data-confirmar="¿Reenviar el documento? Se enviarán los mismos archivos; no se emite un documento nuevo.">
+        <div class="campo campo-busqueda">
+            <label for="destinatario">Reenviar a otro correo (opcional)</label>
+            <input type="email" id="destinatario" name="destinatario" maxlength="100" placeholder="@(d.ReceptorCorreo ?? "correo@ejemplo.com")" />
+        </div>
+        <button type="submit" class="boton boton-secundario">Reenviar documento</button>
+    </form>
+</section>
+
+@if (Model.NotasCredito.Count > 0)
+{
+    <section class="tarjeta">
+        <h2>Notas de crédito relacionadas</h2>
+        <ul>
+            @foreach (var nc in Model.NotasCredito)
+            {
+                <li><a class="monoespaciado" asp-action="Detalle" asp-route-id="@nc.Id">@nc.NumeroControl</a> · @Presentacion.Moneda(nc.MontoTotalOperacion) · @Presentacion.EstadoDocumento(nc.Estado, nc.Modo)</li>
+            }
+        </ul>
+    </section>
+}
+
+@if (anulacion is not null || (esAdmin && Model.Anulacion is not null))
+{
+    <section class="tarjeta">
+        <h2>Anulación</h2>
+        @if (anulacion is not null)
+        {
+            <dl class="datos">
+                <dt>Estado</dt><dd>@Presentacion.EstadoAnulacion(anulacion.Estado)</dd>
+                <dt>Tipo</dt><dd>@Catalogos.TiposAnulacion[anulacion.Tipo]</dd>
+                <dt>Motivo</dt><dd>@anulacion.Motivo</dd>
+                <dt>Solicitada</dt><dd>@Presentacion.FechaHoraLocal(anulacion.SolicitadaUtc, Reloj) por @anulacion.Usuario</dd>
+                <dt>Resultado</dt><dd>@(anulacion.MensajeResultado ?? "—")</dd>
+                <dt>Código del evento</dt><dd class="monoespaciado">@GeneradorDteJson.Codigo(anulacion.CodigoGeneracion)</dd>
+            </dl>
+            @if (esAdmin && anulacion.Estado is EstadoAnulacion.ProcesadaSimulada or EstadoAnulacion.ProcesadaOficial)
+            {
+                <form method="post" asp-controller="Anulaciones" asp-action="ReenviarNotificacion" asp-route-id="@anulacion.Id" class="botonera"
+                      data-confirmar="¿Reenviar la notificación de anulación al cliente?">
+                    <input type="hidden" name="documentoId" value="@d.Id" />
+                    <button type="submit" class="boton boton-secundario">Reenviar notificación de anulación</button>
+                </form>
+            }
+        }
+        @if (esAdmin && Model.Anulacion is { } ctx && anulacion?.Estado is null or EstadoAnulacion.Rechazada)
+        {
+            <p>Plazo configurado para @TiposDteInfo.NombreCorto(d.Tipo): @ctx.Plazo (hasta el @ctx.FechaLimiteLocal.ToString("dd/MM/yyyy HH:mm")).</p>
+            @if (!ctx.Permitida)
+            {
+                <ul class="text-danger">@foreach (var i in ctx.Impedimentos) { <li>@i</li> }</ul>
+            }
+        }
+    </section>
+}

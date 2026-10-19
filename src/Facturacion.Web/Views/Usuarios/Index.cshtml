@@ -1,0 +1,34 @@
+@model List<Facturacion.Web.Controllers.UsuarioFila>
+@{
+    ViewData["Title"] = "Usuarios";
+}
+<div class="encabezado-pagina">
+    <div>
+        <h1>Usuarios</h1>
+        <p class="subtitulo">Personal autorizado. Las contraseñas se guardan cifradas con hash (ASP.NET Core Identity).</p>
+    </div>
+    <div class="acciones"><a class="boton" asp-action="Crear">Crear usuario</a></div>
+</div>
+<div class="tarjeta tabla-contenedor">
+    <table class="tabla">
+        <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th><th></th></tr></thead>
+        <tbody>
+        @foreach (var u in Model)
+        {
+            <tr>
+                <td>@u.Nombre</td>
+                <td>@u.Correo</td>
+                <td>@u.Rol</td>
+                <td>@Presentacion.Activo(u.Activo) @if (u.Bloqueado) { <span class="insignia insignia-aviso">Bloqueado temporalmente</span> }</td>
+                <td>
+                    <form method="post" asp-action="CambiarEstado" asp-route-id="@u.Id" class="en-linea"
+                          data-confirmar="@(u.Activo ? "¿Desactivar este usuario? Perderá el acceso de inmediato." : "¿Activar este usuario?")">
+                        <input type="hidden" name="activo" value="@(!u.Activo ? "true" : "false")" />
+                        <button type="submit" class="boton boton-secundario boton-pequeno">@(u.Activo ? "Desactivar" : "Activar")</button>
+                    </form>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>

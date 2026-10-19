@@ -1,0 +1,118 @@
+@model ResumenPanel
+@inject Facturacion.Application.Abstracciones.IReloj Reloj
+@{
+    ViewData["Title"] = "Panel";
+    var periodo = ViewData["Periodo"] as string;
+}
+<div class="encabezado-pagina">
+    <div>
+        <h1>Panel principal</h1>
+        <p class="subtitulo">Período: @Presentacion.Fecha(Model.Desde) a @Presentacion.Fecha(Model.Hasta). Datos reales de la base de datos.</p>
+    </div>
+    <form method="get" asp-action="Index" class="filtros">
+        <div class="campo">
+            <label for="periodo">Período</label>
+            <select id="periodo" name="periodo">
+                <option value="hoy" selected="@(periodo == "hoy")">Hoy</option>
+                <option value="semana" selected="@(periodo == "semana")">Últimos 7 días</option>
+                <option value="mes" selected="@(periodo == "mes")">Mes actual</option>
+                <option value="personalizado" selected="@(periodo == "personalizado")">Personalizado</option>
+            </select>
+        </div>
+        <div class="campo">
+            <label for="desde">Desde</label>
+            <input type="date" id="desde" name="desde" value="@Model.Desde.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="campo">
+            <label for="hasta">Hasta</label>
+            <input type="date" id="hasta" name="hasta" value="@Model.Hasta.ToString("yyyy-MM-dd")" />
+        </div>
+        <button type="submit" class="boton boton-secundario" data-sin-bloqueo>Aplicar</button>
+    </form>
+</div>
+
+@if (!Model.EmisorConfigurado)
+{
+    <div class="alerta alerta-aviso">
+        Antes de emitir documentos, un administrador debe registrar los datos del emisor en
+        <a asp-controller="Configuracion" asp-action="Index">Configuración</a>.
+    </div>
+}
+
+<div class="rejilla rejilla-indicadores">
+    <div class="indicador"><div class="valor">@Model.Clientes</div><div class="etiqueta">Clientes activos</div></div>
+    <div class="indicador"><div class="valor">@Model.ProductosActivos</div><div class="etiqueta">Productos activos</div></div>
+    <div class="indicador"><div class="valor">@Model.DocumentosEmitidos</div><div class="etiqueta">Documentos vigentes (total)</div></div>
+    <div class="indicador"><div class="valor">@Presentacion.Moneda(Model.VentasPeriodo)</div><div class="etiqueta">Ventas del período (facturas y CCF, @Model.DocumentosEnPeriodo doc.)</div></div>
+    <div class="indicador"><div class="valor">@Presentacion.Moneda(Model.NotasCreditoPeriodo)</div><div class="etiqueta">Notas de crédito del período</div></div>
+    <div class="indicador @(Model.PendientesRevision > 0 ? "alerta-indicador" : "")">
+        <div class="valor">@Model.PendientesRevision</div>
+        <div class="etiqueta">Pendientes de revisión</div>
+    </div>
+    <div class="indicador @(Model.EnviosFallidos > 0 ? "alerta-indicador" : "")">
+        <div class="valor">@Model.EnviosFallidos</div>
+        <div class="etiqueta"><a asp-controller="Documentos" asp-action="Index" asp-route-envioFallido="true">Documentos con envío fallido</a></div>
+    </div>
+</div>
+
+<div class="rejilla rejilla-2">
+    <section class="tarjeta">
+        <h2>Últimos documentos emitidos</h2>
+        @if (Model.UltimosDocumentos.Count == 0)
+        {
+            <div class="vacio">
+                <p>Todavía no se ha emitido ningún documento.</p>
+                <div class="acciones">
+                    <a class="boton" asp-controller="Documentos" asp-action="Emitir" asp-route-tipo="FacturaConsumidorFinal">Emitir factura</a>
+                    <a class="boton boton-secundario" asp-controller="Clientes" asp-action="Crear">Registrar cliente</a>
+                    <a class="boton boton-secundario" asp-controller="Productos" asp-action="Crear">Registrar producto</a>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="tabla-contenedor">
+                <table class="tabla">
+                    <thead><tr><th>Documento</th><th>Cliente</th><th class="derecha">Total</th><th>Estado</th></tr></thead>
+                    <tbody>
+                    @foreach (var d in Model.UltimosDocumentos)
+                    {
+                        <tr>
+                            <td><a asp-controller="Documentos" asp-action="Detalle" asp-route-id="@d.Id">@TiposDteInfo.NombreCorto(d.Tipo)</a><br /><span class="texto-suave monoespaciado">@d.NumeroControl</span></td>
+                            <td>@d.ReceptorNombre</td>
+                            <td class="derecha nowrap">@Presentacion.Moneda(d.TotalPagar)</td>
+                            <td>@Presentacion.EstadoDocumento(d.Estado, d.Modo)</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+    <section class="tarjeta">
+        <h2>Últimas operaciones</h2>
+        @if (Model.UltimasOperaciones.Count == 0)
+        {
+            <p class="vacio">No hay operaciones registradas.</p>
+        }
+        else
+        {
+            <div class="tabla-contenedor">
+                <table class="tabla">
+                    <thead><tr><th>Fecha</th><th>Acción</th><th>Usuario</th><th>Resultado</th></tr></thead>
+                    <tbody>
+                    @foreach (var a in Model.UltimasOperaciones)
+                    {
+                        <tr>
+                            <td class="nowrap">@Presentacion.FechaHoraLocal(a.FechaUtc, Reloj)</td>
+                            <td>@a.Accion</td>
+                            <td>@a.Usuario</td>
+                            <td>@Presentacion.Resultado(a.Resultado)</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</div>

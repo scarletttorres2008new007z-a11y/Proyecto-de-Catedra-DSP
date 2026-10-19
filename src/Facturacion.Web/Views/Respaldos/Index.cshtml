@@ -1,0 +1,49 @@
+@model Pagina<Respaldo>
+@inject Facturacion.Application.Abstracciones.IReloj Reloj
+@{
+    ViewData["Title"] = "Copias de seguridad";
+    var hoy = Reloj.AhoraLocal;
+}
+<div class="encabezado-pagina">
+    <div>
+        <h1>Copias de seguridad</h1>
+        <p class="subtitulo">Motor: @ViewData["Motor"] · Destino: <span class="monoespaciado">@ViewData["Directorio"]</span></p>
+    </div>
+    <form method="post" asp-action="Crear" data-confirmar="¿Crear una copia de seguridad completa de la base de datos ahora?">
+        <button type="submit" class="boton">Backup (@hoy.ToString("dd/MM/yyyy"))</button>
+    </form>
+</div>
+
+<section class="tarjeta">
+    <h2>Cómo verificar y restaurar</h2>
+    <p>Cada copia se crea con <span class="monoespaciado">BACKUP DATABASE … WITH CHECKSUM</span> y se verifica con <span class="monoespaciado">RESTORE VERIFYONLY</span>. El resultado mostrado es el que devolvió SQL Server.</p>
+    <p>La aplicación <strong>no restaura</strong> copias. Para restaurar, un administrador debe hacerlo en SQL Server Management Studio o con sqlcmd, preferiblemente sobre una base de datos con <strong>otro nombre</strong> para revisar el contenido antes de reemplazar la base activa (consulte la guía <span class="monoespaciado">docs/04-respaldos.md</span>). Restaurar sobre la base activa reemplaza todos los datos posteriores a la copia.</p>
+</section>
+
+@if (Model.Total == 0)
+{
+    <div class="tarjeta vacio"><p>Aún no se han creado copias de seguridad.</p></div>
+}
+else
+{
+    <div class="tarjeta tabla-contenedor">
+        <table class="tabla">
+            <thead><tr><th>Fecha</th><th>Archivo</th><th class="derecha">Tamaño</th><th>Estado</th><th>Verificada</th><th>Usuario</th><th>Mensaje</th></tr></thead>
+            <tbody>
+            @foreach (var r in Model.Elementos)
+            {
+                <tr>
+                    <td class="nowrap">@Presentacion.FechaHoraLocal(r.IniciadoUtc, Reloj)</td>
+                    <td><span class="monoespaciado">@r.NombreArchivo</span>@if (!string.IsNullOrEmpty(r.RutaArchivo)) {<br /><span class="texto-suave monoespaciado">@r.RutaArchivo</span>}</td>
+                    <td class="derecha">@Presentacion.Tamano(r.TamanoBytes)</td>
+                    <td>@Presentacion.EstadoRespaldo(r.Estado)</td>
+                    <td>@(r.Verificado ? "Sí" : "No")</td>
+                    <td>@r.Usuario</td>
+                    <td>@r.Mensaje</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+        <partial name="_Paginacion" model="(Model.NumeroPagina, Model.TotalPaginas, Model.Total)" />
+    </div>
+}

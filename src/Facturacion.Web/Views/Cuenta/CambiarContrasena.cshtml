@@ -1,0 +1,30 @@
+@model Facturacion.Web.Controllers.CambioContrasenaModelo
+@{
+    ViewData["Title"] = "Cambiar contraseña";
+}
+<h1>Cambiar contraseña</h1>
+<p class="subtitulo">Mínimo 10 caracteres, con mayúscula, minúscula, dígito y símbolo.</p>
+<div class="tarjeta estrecho">
+    <form asp-action="CambiarContrasena" method="post" class="formulario" novalidate>
+        <partial name="_ResumenErrores" />
+        <div class="campo">
+            <label asp-for="Actual"></label>
+            <input asp-for="Actual" autocomplete="current-password" />
+            <span asp-validation-for="Actual"></span>
+        </div>
+        <div class="campo">
+            <label asp-for="Nueva"></label>
+            <input asp-for="Nueva" autocomplete="new-password" />
+            <span asp-validation-for="Nueva"></span>
+        </div>
+        <div class="campo">
+            <label asp-for="Confirmacion"></label>
+            <input asp-for="Confirmacion" autocomplete="new-password" />
+            <span asp-validation-for="Confirmacion"></span>
+        </div>
+        <div class="botonera">
+            <button type="submit" class="boton">Guardar</button>
+            <a class="boton boton-secundario" asp-controller="Inicio" asp-action="Index">Cancelar</a>
+        </div>
+    </form>
+</div>

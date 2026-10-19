@@ -1,0 +1,23 @@
+@model UsuarioFormulario
+@{
+    ViewData["Title"] = "Crear usuario";
+}
+<h1>Crear usuario</h1>
+<p class="subtitulo">La contraseña inicial debe tener al menos 10 caracteres, con mayúscula, minúscula, dígito y símbolo. Pida al usuario cambiarla al ingresar.</p>
+<form method="post" asp-action="Crear" class="formulario tarjeta estrecho" novalidate>
+    <partial name="_ResumenErrores" />
+    <div class="campo"><label asp-for="NombreCompleto"></label><input asp-for="NombreCompleto" maxlength="150" /><span asp-validation-for="NombreCompleto"></span></div>
+    <div class="campo"><label asp-for="Correo"></label><input asp-for="Correo" type="email" autocomplete="off" /><span asp-validation-for="Correo"></span></div>
+    <div class="campo">
+        <label asp-for="Rol"></label>
+        <select asp-for="Rol">
+            <option value="@Roles.Facturador">Facturador (clientes, productos, emisión y reenvío)</option>
+            <option value="@Roles.Administrador">Administrador (todo, incluidas anulaciones y respaldos)</option>
+        </select>
+    </div>
+    <div class="campo"><label asp-for="Contrasena"></label><input asp-for="Contrasena" autocomplete="new-password" /><span asp-validation-for="Contrasena"></span></div>
+    <div class="botonera">
+        <button type="submit" class="boton">Crear</button>
+        <a class="boton boton-secundario" asp-action="Index">Cancelar</a>
+    </div>
+</form>

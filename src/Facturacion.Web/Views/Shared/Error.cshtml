@@ -1,0 +1,23 @@
+﻿@{
+    var codigo = ViewData["Codigo"] as int? ?? 500;
+    var (titulo, texto) = codigo switch
+    {
+        404 => ("Página no encontrada", "La página o el registro que busca no existe."),
+        403 => ("Acceso denegado", "No tiene permiso para realizar esta acción."),
+        429 => ("Demasiados intentos", "Espere un minuto antes de volver a intentarlo."),
+        400 => ("Solicitud no válida", "La solicitud no pudo procesarse. Si estaba llenando un formulario, recargue la página e inténtelo de nuevo."),
+        _ => ("Ocurrió un error", "No se pudo completar la operación. El error quedó registrado; si persiste, comuníquelo al administrador indicando el código de seguimiento.")
+    };
+    ViewData["Title"] = titulo;
+}
+<div class="tarjeta estrecho">
+    <h1>@titulo</h1>
+    <p>@texto</p>
+    @if (codigo >= 500)
+    {
+        <p class="texto-suave">Código de seguimiento: <span class="monoespaciado">@ViewData["Seguimiento"]</span></p>
+    }
+    <div class="botonera">
+        <a class="boton" href="/">Ir al panel</a>
+    </div>
+</div>

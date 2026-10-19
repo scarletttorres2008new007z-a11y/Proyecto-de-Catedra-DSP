@@ -1,0 +1,85 @@
+@model Pagina<DocumentoTributario>
+@{
+    ViewData["Title"] = "Documentos";
+    var f = (FiltroDocumentos)ViewData["Filtro"]!;
+}
+<div class="encabezado-pagina">
+    <div>
+        <h1>Documentos emitidos</h1>
+        <p class="subtitulo">Facturas, comprobantes de crédito fiscal y notas de crédito generados por el sistema.</p>
+    </div>
+    <div class="acciones">
+        <a class="boton" asp-action="Emitir" asp-route-tipo="FacturaConsumidorFinal">Nueva factura</a>
+        <a class="boton" asp-action="Emitir" asp-route-tipo="ComprobanteCreditoFiscal">Nuevo CCF</a>
+        <a class="boton boton-secundario" asp-action="NotaCredito">Nueva nota de crédito</a>
+    </div>
+</div>
+
+<form method="get" asp-action="Index" class="filtros tarjeta">
+    <div class="campo campo-busqueda">
+        <label for="busqueda">Número de control, código de generación, cliente o documento</label>
+        <input type="search" id="busqueda" name="busqueda" value="@f.Busqueda" />
+    </div>
+    <div class="campo">
+        <label for="tipo">Tipo</label>
+        <select id="tipo" name="tipo">
+            <option value="">Todos</option>
+            @foreach (var t in Enum.GetValues<TipoDte>())
+            {
+                <option value="@t" selected="@(f.Tipo == t)">@TiposDteInfo.NombreCorto(t)</option>
+            }
+        </select>
+    </div>
+    <div class="campo">
+        <label for="estado">Estado</label>
+        <select id="estado" name="estado">
+            <option value="">Todos</option>
+            <option value="Emitido" selected="@(f.Estado == EstadoDocumento.Emitido)">Emitido</option>
+            <option value="Anulado" selected="@(f.Estado == EstadoDocumento.Anulado)">Anulado</option>
+        </select>
+    </div>
+    <div class="campo">
+        <label for="desde">Desde</label>
+        <input type="date" id="desde" name="desde" value="@f.Desde?.ToString("yyyy-MM-dd")" />
+    </div>
+    <div class="campo">
+        <label for="hasta">Hasta</label>
+        <input type="date" id="hasta" name="hasta" value="@f.Hasta?.ToString("yyyy-MM-dd")" />
+    </div>
+    <label class="casilla"><input type="checkbox" name="envioFallido" value="true" checked="@f.SoloConEnvioFallido" /> Solo con envío fallido</label>
+    <button type="submit" class="boton boton-secundario" data-sin-bloqueo>Filtrar</button>
+</form>
+
+@if (Model.Total == 0)
+{
+    <div class="tarjeta vacio">
+        <p>No hay documentos que coincidan con los filtros.</p>
+        <div class="acciones"><a class="boton" asp-action="Emitir">Emitir un documento</a></div>
+    </div>
+}
+else
+{
+    <div class="tarjeta tabla-contenedor">
+        <table class="tabla">
+            <thead>
+            <tr><th>Fecha</th><th>Tipo</th><th>Número de control</th><th>Cliente</th><th class="derecha">Total</th><th>Estado</th><th>Correo</th></tr>
+            </thead>
+            <tbody>
+            @foreach (var d in Model.Elementos)
+            {
+                var ultimo = d.Envios.OrderByDescending(e => e.Id).FirstOrDefault();
+                <tr>
+                    <td class="nowrap">@Presentacion.Fecha(d.FechaEmision) @d.HoraEmision.ToString("HH:mm")</td>
+                    <td>@TiposDteInfo.NombreCorto(d.Tipo)</td>
+                    <td><a class="monoespaciado" asp-action="Detalle" asp-route-id="@d.Id">@d.NumeroControl</a></td>
+                    <td>@d.ReceptorNombre</td>
+                    <td class="derecha nowrap">@Presentacion.Moneda(d.TotalPagar)</td>
+                    <td>@Presentacion.EstadoDocumento(d.Estado, d.Modo)</td>
+                    <td>@Presentacion.EstadoEnvio(ultimo?.Estado)</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+        <partial name="_Paginacion" model="(Model.NumeroPagina, Model.TotalPaginas, Model.Total)" />
+    </div>
+}
