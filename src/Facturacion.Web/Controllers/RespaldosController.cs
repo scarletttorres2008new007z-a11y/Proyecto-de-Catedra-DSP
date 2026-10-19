@@ -1,3 +1,4 @@
+using Facturacion.Application.Abstracciones;
 using Facturacion.Application.Servicios;
 using Facturacion.Domain;
 using Facturacion.Domain.Reglas;
@@ -8,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Facturacion.Web.Controllers;
 
 [Authorize(Policy = Politicas.SoloAdministrador)]
-public sealed class RespaldosController(RespaldoService respaldos) : ControladorBase
+public sealed class RespaldosController(RespaldoService respaldos, IReloj reloj) : ControladorBase
 {
     public async Task<IActionResult> Index(int pagina = 1)
     {
@@ -21,7 +22,7 @@ public sealed class RespaldosController(RespaldoService respaldos) : Controlador
     public async Task<IActionResult> Crear()
     {
         var r = await respaldos.CrearAsync();
-        if (r.Estado == EstadoRespaldo.Exitoso) Exito($"Backup ({r.IniciadoUtc:yyyy-MM-dd}) creado: {r.NombreArchivo}. {r.Mensaje}");
+        if (r.Estado == EstadoRespaldo.Exitoso) Exito($"Backup ({reloj.ALocal(r.IniciadoUtc):dd/MM/yyyy}) creado: {r.NombreArchivo}. {r.Mensaje}");
         else Error($"La copia de seguridad falló: {r.Mensaje}");
         return RedirectToAction(nameof(Index));
     }
