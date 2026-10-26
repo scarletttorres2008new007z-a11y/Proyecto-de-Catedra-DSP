@@ -86,6 +86,7 @@ docs/                         Documentación académica
 7. [Guía de demostración (escenarios A–F)](docs/07-guia-demostracion.md)
 8. [Limitaciones, problemas y soluciones](docs/08-limitaciones-y-problemas.md)
 9. [Subir el proyecto a GitHub](docs/09-subir-a-github.md)
+10. [Cómo funciona el sistema, paso a paso](docs/10-como-funciona.md)
 
 ## Tecnologías y licencias
 
